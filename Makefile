@@ -1,4 +1,5 @@
 # Makefile for kacchiOS
+
 CC = gcc
 LD = ld
 AS = as
@@ -8,31 +9,40 @@ CFLAGS = -m32 -ffreestanding -O2 -Wall -Wextra -nostdinc \
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-OBJS = boot.o kernel.o serial.o string.o
+SRCS_C = kernel.c serial.c string.c
+SRCS_ASM = boot.S
 
-all: kernel.elf
+TARGET_DIR = target
+OBJS = $(patsubst %.c,$(TARGET_DIR)/%.o,$(SRCS_C)) \
+       $(patsubst %.S,$(TARGET_DIR)/%.o,$(SRCS_ASM))
+KERNEL_ELF = $(TARGET_DIR)/kernel.elf
 
-kernel.elf: $(OBJS)
+all: $(KERNEL_ELF)
+
+$(KERNEL_ELF): $(OBJS)
+	@mkdir -p $(TARGET_DIR)
 	$(LD) $(LDFLAGS) -T link.ld -o $@ $^
 
-%.o: %.c
+$(TARGET_DIR)/%.o: %.c
+	@mkdir -p $(TARGET_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-%.o: %.S
+$(TARGET_DIR)/%.o: %.S
+	@mkdir -p $(TARGET_DIR)
 	$(AS) $(ASFLAGS) $< -o $@
 
-run: kernel.elf
-	qemu-system-i386 -kernel kernel.elf -m 64M -serial stdio -display none
+run: $(KERNEL_ELF)
+	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial stdio -display none
 
-run-vga: kernel.elf
-	qemu-system-i386 -kernel kernel.elf -m 64M -serial mon:stdio
+run-vga: $(KERNEL_ELF)
+	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial mon:stdio
 
-debug: kernel.elf
-	qemu-system-i386 -kernel kernel.elf -m 64M -serial stdio -display none -s -S &
+debug: $(KERNEL_ELF)
+	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial stdio -display none -s -S &
 	@echo "Waiting for GDB connection on port 1234..."
-	@echo "In another terminal run: gdb -ex 'target remote localhost:1234' -ex 'symbol-file kernel.elf'"
+	@echo "In another terminal run: gdb -ex 'target remote localhost:1234' -ex 'symbol-file $(KERNEL_ELF)'"
 
 clean:
-	rm -f *.o kernel.elf
+	rm -f $(TARGET_DIR)/*
 
 .PHONY: all run run-vga debug clean
