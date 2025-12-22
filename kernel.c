@@ -22,7 +22,7 @@ void kmain(void) {
     
     /* Main loop - the "null process" */
     while (1) {
-        serial_puts("kacchiOS> ");
+        serial_puts("🍚 kacchiOS >> ");
         pos = 0;
         
         /* Read input line */
