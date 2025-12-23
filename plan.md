@@ -25,7 +25,7 @@ dumped there,Include some test as well,and a make file to see if it is working p
 It is fine to use global variable,Just don't add them in header,
 ### 2. Process Manager (Basic)
 - Define a `process_t` struct with:
-  - PID (uint8_t, 0–254 valid, 255 invalid), state (CURRENT, READY, TERMINATED), stack pointer, etc.
+  - PID (uint8_t, 0–254 valid, 255 invalid), state (CURRENT, READY,SUSPENDED ,TERMINATED), stack pointer, etc.
 - Create a process table (array of 255 `process_t` entries, like Xinu).
 - Implement process creation (`proc_create`), termination (`proc_terminate`), and state transitions.
 THis implementation will be something like and array with index for empty array
