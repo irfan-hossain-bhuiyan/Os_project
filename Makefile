@@ -9,8 +9,8 @@ CFLAGS = -m32 -ffreestanding -O2 -Wall -Wextra -nostdinc \
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-SRCS_C = kernel.c serial.c string.c
-SRCS_ASM = boot.S
+SRCS_C = kernel.c serial.c string.c timer.c stack.c idt.c pic.c
+SRCS_ASM = boot.S timer_stub.S load_idt.S
 
 TARGET_DIR = target
 OBJS = $(patsubst %.c,$(TARGET_DIR)/%.o,$(SRCS_C)) \
@@ -19,7 +19,7 @@ KERNEL_ELF = $(TARGET_DIR)/kernel.elf
 
 all: $(KERNEL_ELF)
 
-$(KERNEL_ELF): $(OBJS)
+$(KERNEL_ELF): $(OBJS) target/context_switch.o
 	@mkdir -p $(TARGET_DIR)
 	$(LD) $(LDFLAGS) -T link.ld -o $@ $^
 
@@ -27,7 +27,13 @@ $(TARGET_DIR)/%.o: %.c
 	@mkdir -p $(TARGET_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(TARGET_DIR)/context_switch.o: context_switch.s
+	$(AS) $(ASFLAGS) $< -o $@
+
 $(TARGET_DIR)/%.o: %.S
+	$(AS) $(ASFLAGS) $< -o $@
+	@echo "Assembling $<"
+	@echo "Assembling $<"
 	@mkdir -p $(TARGET_DIR)
 	$(AS) $(ASFLAGS) $< -o $@
 
