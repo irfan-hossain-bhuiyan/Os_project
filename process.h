@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-#define NPROC 255
+#define NPROC 16
 
 // Process states
 enum proc_state {
@@ -25,12 +25,12 @@ struct procent {
 extern struct procent proc_table[NPROC];
 
 typedef void (*proc_entry_t)(void *);
-// Create a new process. Returns PID (0-254) or 255 on error.
+// Create a new process. Returns PID (0-15) or 255 on error.
 uint8_t proc_create(proc_entry_t entry, const void *arg, const char *name);
 
-
-extern void context_switch(uintptr_t **old_sp, uintptr_t **new_sp);
 extern uint8_t current_pid;
+void init_proc(void);
 void switch_process(uint8_t next_pid);
+void run_null_process(void);
 
 #endif // PROCESS_H

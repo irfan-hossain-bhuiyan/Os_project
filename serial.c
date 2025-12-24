@@ -58,3 +58,10 @@ char serial_getc(void) {
     while (!serial_received());
     return inb(COM1);
 }
+void serial_print_hex(uint32_t val) {
+    char hex_chars[] = "0123456789ABCDEF";
+    serial_puts("0x");
+    for (int i = 7; i >= 0; i--) {
+        serial_putc(hex_chars[(val >> (i * 4)) & 0xF]);
+    }
+}

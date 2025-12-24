@@ -1,51 +1,40 @@
-/* kernel.c - Main kernel with null process */
 #include "types.h"
 #include "serial.h"
-#include "string.h"
-#include "timer.h"
-#include "idt.h"
-
-#define MAX_INPUT 128
-
 #include "process.h"
 
-/* Test processes */
 void process_a(void *arg) {
+    (void)arg;
     while (1) {
-        serial_puts(" [A] ");
-        for (volatile int i = 0; i < 1000000; i++);
+        serial_puts("A");
+        for (volatile int i = 0; i < 2000000; i++);
+        switch_process(1); // Switch to process B
     }
 }
 
 void process_b(void *arg) {
+    (void)arg;
     while (1) {
-        serial_puts(" [B] ");
-        for (volatile int i = 0; i < 1000000; i++);
+        serial_puts("B");
+        for (volatile int i = 0; i < 2000000; i++);
+        switch_process(0); // Switch to process A
     }
 }
 
 void kmain(void) {
-    /* Initialize hardware */
     serial_init();
+    serial_puts("\n--- kacchiOS Hardcoded Context Switch Test ---\n");
+
+    init_proc();
     
-    /* Initialize IDT */
-    idt_install();
+    serial_puts("Creating Process A...\n");
+    proc_create(process_a, NULL, "proc_a"); // PID 0
     
-    /* Create test processes */
-    proc_create(process_a, "A", "proc_a"); // PID 0
-    proc_create(process_b, "B", "proc_b"); // PID 1
+    serial_puts("Creating Process B...\n");
+    proc_create(process_b, NULL, "proc_b"); // PID 1
 
-    /* Initialize timer - This will eventually trigger the scheduler */
-    timer_init();
-
-    serial_puts("\nStarting kacchiOS Multitasking Test...\n");
-
-    /* Jump to the first process manually for the first time */
-    /* In a real kernel, the scheduler would handle this */
+    serial_puts("Starting multitasking...\n");
     switch_process(0);
 
     /* Should never reach here */
-    for (;;) {
-        __asm__ volatile ("hlt");
-    }
+    while(1);
 }

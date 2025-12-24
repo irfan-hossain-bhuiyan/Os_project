@@ -13,4 +13,6 @@ typedef uint32_t       size_t;
 
 #define NULL  ((void*)0)
 
+_Static_assert(__SIZEOF_POINTER__ == sizeof(uintptr_t), "uintptr_t size does not match pointer size");
+
 #endif

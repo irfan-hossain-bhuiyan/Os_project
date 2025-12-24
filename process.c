@@ -1,60 +1,119 @@
 #include "process.h"
+#include "serial.h"
 #include "stack.h"
 #include "string.h"
 
 struct procent proc_table[NPROC];
+uint8_t current_pid = 255;
+const size_t STACK_SIZE = 4096;
 
-// Helper to find a free PID
-static int find_free_pid() {
-    for (int i = 0; i < NPROC; ++i) {
-        if (proc_table[i].state == PROC_FREE) return i;
+void null_process(void *arg) {
+    (void)arg;
+    serial_puts("[NULL] Null process is running!\n");
+    while (1) {
+        serial_puts(".");
+        for (volatile int i = 0; i < 2000000; i++);
     }
-    return -1;
+}
+
+void init_proc(void) {
+    /* Initialize process table */
+    for (int i = 0; i < NPROC; i++) {
+        proc_table[i].state = PROC_FREE;
+        proc_table[i].pid = i;
+    }
+    
+    /* Create null process using proc_create */
+    proc_create(null_process, NULL, "null_process");
 }
 
 uint8_t proc_create(proc_entry_t entry, const void *arg, const char *name) {
-    int pid = find_free_pid();
-    if (pid < 0) return 255;
-    void *stack = alloc_stack(4096);
+    /* Find a free slot */
+    int pid = -1;
+    for (int i = 0; i < NPROC; i++) {
+        if (proc_table[i].state == PROC_FREE) {
+            pid = i;
+            break;
+        }
+    }
+    
+    if (pid == -1) return 255;
+    
+    void *stack = alloc_stack(STACK_SIZE);
     if (!stack) return 255;
-    proc_table[pid].pid = pid;
-    proc_table[pid].state = PROC_SUSPENDED;
+
+    proc_table[pid].state = PROC_READY;
     proc_table[pid].stackbase = stack;
     
-    // i386 stack grows down, so start at top
-    uintptr_t *sp = (uintptr_t*)((uint8_t*)stack + 4096);
-
-    // --- C Calling Convention Setup ---
-    *(--sp) = (uintptr_t)arg;      // Argument for entry function
-    *(--sp) = 0;                   // Fake return address
-
-    // --- context_switch Setup ---
-    // When context_switch executes 'ret', it pops this:
-    *(--sp) = (uintptr_t)entry;    // Entry point (EIP)
+    /* Prepare initial stack frame */
+    uintptr_t *sp = (uintptr_t *)((uint8_t *)stack + STACK_SIZE);
     
-    // When context_switch executes 'popf', it pops this:
-    *(--sp) = 0x202;               // EFLAGS (Interrupts enabled)
-
-    // When context_switch executes 'popa', it pops 8 registers:
+    *(--sp) = (uintptr_t)arg;           // Argument
+    *(--sp) = 0;                        // Dummy Return Address
+    *(--sp) = (uintptr_t)entry;         // Initial EIP
+    *(--sp) = 0x002;                    // EFLAGS (Interrupts disabled)
+    
+    /* Push dummy registers for popa */
     for (int i = 0; i < 8; i++) {
-        *(--sp) = 0;               // EDI, ESI, EBP, ESP, EBX, EDX, ECX, EAX
+        *(--sp) = 0;
     }
-
+    
     proc_table[pid].stackptr = sp;
     strcpy(proc_table[pid].name, name);
     proc_table[pid].name[15] = '\0';
+    
     return pid;
 }
 
-uint8_t current_pid = 254; // Start at a dummy PID for kmain
+void run_null_process(void) {
+    /* Switch to PID 0 (the null process created in init_proc) */
+    switch_process(0);
+}
 
-extern void context_switch(uintptr_t **old_sp, uintptr_t **new_sp);
 void switch_process(uint8_t next_pid) {
-    if (next_pid == current_pid || next_pid >= NPROC) return;
+    if (next_pid >= NPROC || proc_table[next_pid].state == PROC_FREE) return;
 
-    // Perform context switch
+    /* Handle first-time switch from kernel to a process */
+    if (current_pid == 255) {
+        current_pid = next_pid;
+        proc_table[next_pid].state = PROC_CURRENT;
+        uintptr_t *sp = proc_table[next_pid].stackptr;
+
+        __asm__ volatile(
+            "mov %0, %%esp \n\t"
+            "popa          \n\t"
+            "popf          \n\t"
+            "ret           \n\t"
+            : 
+            : "r" (sp)
+            : "memory"
+        );
+        __builtin_unreachable();
+    }
+
+    if (next_pid == current_pid) return;
+
     uint8_t prev_pid = current_pid;
-    current_pid = next_pid; // Update before switch so new task sees itself as current
+    current_pid = next_pid;
     
-    context_switch(&proc_table[prev_pid].stackptr, &proc_table[next_pid].stackptr);
+    proc_table[prev_pid].state = PROC_READY;
+    proc_table[next_pid].state = PROC_CURRENT;
+    
+    /* 
+     * Inline Context Switch 
+     * We save current state and load the next state.
+     * %0: pointer to old stack pointer (output)
+     * %1: new stack pointer (input)
+     */
+    __asm__ volatile(
+        "pushf          \n\t"
+        "pusha          \n\t"
+        "movl %%esp, %0 \n\t"  // Store current ESP into proc_table[prev].stackptr
+        "movl %1, %%esp \n\t"  // Load new ESP from proc_table[next].stackptr
+        "popa           \n\t"
+        "popf           \n\t"
+        : "=m" (proc_table[prev_pid].stackptr)
+        : "m" (proc_table[next_pid].stackptr)
+        : "memory"
+    );
 }

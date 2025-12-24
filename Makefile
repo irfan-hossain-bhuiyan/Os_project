@@ -4,13 +4,14 @@ CC = gcc
 LD = ld
 AS = as
 
-CFLAGS = -m32 -ffreestanding -O2 -Wall -Wextra -nostdinc \
+# Using -O0 for stable bare-metal development per user request
+CFLAGS = -m32 -ffreestanding -O0 -Wall -Wextra -nostdinc \
          -fno-builtin -fno-stack-protector -I.
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-SRCS_C = kernel.c serial.c string.c timer.c stack.c idt.c pic.c process.c
-SRCS_ASM = boot.S timer_stub.S load_idt.S
+SRCS_C = kernel.c serial.c string.c process.c stack.c
+SRCS_ASM = boot.S 
 
 TARGET_DIR = target
 OBJS = $(patsubst %.c,$(TARGET_DIR)/%.o,$(SRCS_C)) \
@@ -19,7 +20,7 @@ KERNEL_ELF = $(TARGET_DIR)/kernel.elf
 
 all: $(KERNEL_ELF)
 
-$(KERNEL_ELF): $(OBJS) target/context_switch.o
+$(KERNEL_ELF): $(OBJS)
 	@mkdir -p $(TARGET_DIR)
 	$(LD) $(LDFLAGS) -T link.ld -o $@ $^
 
@@ -27,15 +28,9 @@ $(TARGET_DIR)/%.o: %.c
 	@mkdir -p $(TARGET_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(TARGET_DIR)/context_switch.o: context_switch.s
-	$(AS) $(ASFLAGS) $< -o $@
-
 $(TARGET_DIR)/%.o: %.S
 	$(AS) $(ASFLAGS) $< -o $@
 	@echo "Assembling $<"
-	@echo "Assembling $<"
-	@mkdir -p $(TARGET_DIR)
-	$(AS) $(ASFLAGS) $< -o $@
 
 run: $(KERNEL_ELF)
 	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial stdio -display none
@@ -67,22 +62,8 @@ HEAP_OBJ = $(TARGET_DIR)/heap.o
 STACK_TEST = $(TARGET_DIR)/test_stack
 HEAP_TEST = $(TARGET_DIR)/test_heap
 
-
-
 # Test CFLAGS (simple, allow standard includes)
 TEST_CFLAGS = -m32 -O2 -Wall -Wextra -I.
-
-# Build rule for stack.o
-$(STACK_OBJ): stack.c
-	@echo "[CC][LIB] $< -> $@"
-	@mkdir -p $(TARGET_DIR)
-	$(CC) $(TEST_CFLAGS) -c $< -o $@
-
-# Build rule for heap.o
-$(HEAP_OBJ): heap.c
-	@echo "[CC][LIB] $< -> $@"
-	@mkdir -p $(TARGET_DIR)
-	$(CC) $(TEST_CFLAGS) -c $< -o $@
 
 # Build rule for stack_test.o
 $(STACK_TEST_OBJ): $(STACK_TEST_SRC)
@@ -121,5 +102,3 @@ test: stack_test heap_test
 	@echo "[RUN] All tests completed."
 
 .PHONY: stack_test heap_test test
-
-
