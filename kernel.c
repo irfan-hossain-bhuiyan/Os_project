@@ -7,62 +7,43 @@
 
 #define MAX_INPUT 128
 
+#include "process.h"
+
+/* Test processes */
+void process_a(void *arg) {
+    while (1) {
+        serial_puts(" [A] ");
+        for (volatile int i = 0; i < 1000000; i++);
+    }
+}
+
+void process_b(void *arg) {
+    while (1) {
+        serial_puts(" [B] ");
+        for (volatile int i = 0; i < 1000000; i++);
+    }
+}
+
 void kmain(void) {
-    char input[MAX_INPUT];
-    int pos = 0;
-    
     /* Initialize hardware */
     serial_init();
     
     /* Initialize IDT */
     idt_install();
     
-    /* Initialize timer */
+    /* Create test processes */
+    proc_create(process_a, "A", "proc_a"); // PID 0
+    proc_create(process_b, "B", "proc_b"); // PID 1
+
+    /* Initialize timer - This will eventually trigger the scheduler */
     timer_init();
 
-    /* Print welcome message */
-    serial_puts("\n");
-    serial_puts("========================================\n");
-    serial_puts("    kacchiOS - Minimal Baremetal OS\n");
-    serial_puts("========================================\n");
-    serial_puts("Hello from kacchiOS!\n");
-    serial_puts("Running null process...\n\n");
-    
-    /* Main loop - the "null process" */
-    while (1) {
-        // serial_puts("🍚 kacchiOS >> ");
-        // pos = 0;
-        // 
-        // /* Read input line */
-        // while (1) {
-        //     char c = serial_getc();
-        //     
-        //     /* Handle Enter key */
-        //     if (c == '\r' || c == '\n') {
-        //         input[pos] = '\0';
-        //         serial_puts("\n");
-        //         break;
-        //     }
-        //     /* Handle Backspace */
-        //     else if ((c == '\b' || c == 0x7F) && pos > 0) {
-        //         pos--;
-        //     serial_puts("\b \b");  /* Erase character on screen */
-        //    }
-        //    /* Handle normal characters */
-        //    else if (c >= 32 && c < 127 && pos < MAX_INPUT - 1) {
-        //        input[pos++] = c;
-        //        serial_putc(c);  /* Echo character */
-        //    }
-        //}
-        //
-        ///* Echo back the input */
-        //if (pos > 0) {
-        //    serial_puts("You typed: ");
-        //    serial_puts(input);
-        //    serial_puts("\n");
-        //}
-    }
-    
+    serial_puts("\nStarting kacchiOS Multitasking Test...\n");
+
+    /* Jump to the first process manually for the first time */
+    /* In a real kernel, the scheduler would handle this */
+    switch_process(0);
+
     /* Should never reach here */
     for (;;) {
         __asm__ volatile ("hlt");

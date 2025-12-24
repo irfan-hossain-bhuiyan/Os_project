@@ -8,22 +8,25 @@
 .type context_switch, @function
 
 context_switch:
-    // Save callee-saved registers and EFLAGS
-    pusha              # Push EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI
-    pushf              # Push EFLAGS
+    // 1. Save current task's state
+    pushf              # Push EFLAGS (4 bytes)
+    pusha              # Push EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI (32 bytes)
 
-    # Save current ESP to *old_sp
-    mov  44(%esp), %eax  # Get old_sp argument (ESP + 44 after pusha/pushf)
-    lea  12(%esp), %edx  # ESP value after pusha/pushf (where EFLAGS is)
-    mov  %edx, (%eax)    # *old_sp = current ESP
+    // Now stack has: [Old EIP][old_sp][new_sp]...[EFLAGS][Pushed Regs]
+    // Total pushed: 36 bytes + 4 bytes (EIP) = 40 bytes.
+    // old_sp (Arg 1) is at 40(%esp)
+    // new_sp (Arg 2) is at 44(%esp)
 
-    # Load new ESP from new_sp argument
-    mov  48(%esp), %eax  # Load new_sp argument (ESP + 48 after pusha/pushf)
-    mov  (%eax), %esp
-    mov  (%eax), %esp
+    // 2. Save current ESP into *old_sp
+    mov 40(%esp), %eax   # Get pointer to old_sp
+    mov %esp, (%eax)     # *old_sp = current ESP
 
-    // Restore EFLAGS and registers from new stack
-    popf
+    // 3. Load new ESP from new_sp
+    mov 44(%esp), %eax   # Get new_sp value (this is the pointer to the new stack)
+    mov (%eax), %esp     # ESP = *new_sp (load the value pointed to by new_sp)
+
+    // 4. Restore new task's state
     popa
-
+    popf
     ret
+

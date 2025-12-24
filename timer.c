@@ -16,10 +16,14 @@ static void pit_init(uint32_t frequency) {
     outb(PIT_COUNTER0, (divisor >> 8) & 0xFF); // High byte
 }
 
+#include "process.h"
+
 void timer_handler(void) {
     ticks++;
     if (ticks % 100 == 0) {
-        serial_puts("...\n");
+        // Switch between PID 0 (Process A) and PID 1 (Process B)
+        uint8_t next = (current_pid == 0) ? 1 : 0;
+        switch_process(next);
     }
     pic_send_eoi(0); // IRQ0
 }

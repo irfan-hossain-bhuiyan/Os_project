@@ -56,3 +56,38 @@ load_idt:
     ret
 ```
 The first 4 bytes on the stack `(%esp)` is the return address of the function, so the actual pointer passed from C is at `4(%esp)`.
+
+---
+
+## 📂 Which Code Does What?
+
+Here is the map of where these concepts live in your project:
+
+### 1. `pic.c` -> `pic_remap()`
+*   **What it does:** Sends initialization commands to the PIC.
+*   **The Key Line:** `outb(PIC1_DATA, 0x20);` — This is the remapping. It tells the PIC to start hardware interrupts at index 32 in your IDT.
+*   **The Mask:** `outb(PIC1_DATA, 0xFE);` — This disables all IRQs except IRQ0 (the timer).
+
+### 2. `timer.c` -> `pit_init()`
+*   **What it does:** Configures the actual timer frequency.
+*   **The Logic:** It calculates the divisor and sends it to the PIT ports (`0x43` for control, `0x40` for data).
+
+### 3. `timer.c` -> `timer_init()`
+*   **What it does:** The "glue" function.
+    1.  Calls `pit_init(100)`.
+    2.  Calls `idt_set_gate(32, ...)` to link index 32 to our assembly code.
+    3.  Calls `pic_remap()`.
+    4.  Runs `asm volatile("sti")` to finally wake up interrupts.
+
+### 4. `timer_stub.S` -> `timer_stub:`
+*   **What it does:** This is the **Entry Point**. 
+*   **Why it's needed:** When an interrupt happens, the CPU doesn't know about C. This assembly code saves the "Old World" (pusha) and prepares the "New World" (calling C).
+*   **`iret`:** The most important instruction here. It's a special return that restores the CPU flags so the OS can continue running without knowing it was ever interrupted.
+
+### 5. `timer.c` -> `timer_handler()`
+*   **What it does:** The actual "Work."
+*   **The Logic:** Increments `ticks`. Every 100 ticks, it prints to the serial port.
+*   **The EOI:** `pic_send_eoi(0);` — This is the "Acknowledgement." If you forget this, the PIC thinks the CPU is still busy and will never send another timer tick.
+
+### 6. `load_idt.S` -> `load_idt()`
+*   **What it does:** Passes the address of your IDT array to the CPU's internal `IDTR` register using the `lidt` instruction. Without this, the CPU has no idea where your table is hidden in memory.

@@ -29,6 +29,8 @@ typedef void (*proc_entry_t)(void *);
 uint8_t proc_create(proc_entry_t entry, const void *arg, const char *name);
 
 
-extern void context_switch(uintptr_t *old_sp, uintptr_t *new_sp);
+extern void context_switch(uintptr_t **old_sp, uintptr_t **new_sp);
+extern uint8_t current_pid;
+void switch_process(uint8_t next_pid);
 
 #endif // PROCESS_H

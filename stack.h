@@ -1,8 +1,7 @@
 #ifndef MEMORY_STACK_H
 #define MEMORY_STACK_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include "types.h"
 
 // Allocates a stack of 4KB. Returns pointer to base, or NULL on error.
 void* alloc_stack(size_t size);
