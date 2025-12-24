@@ -1,6 +1,6 @@
-    .global load_idt
+.global load_idt
 
-    .section .text
+.section .text
 load_idt:
     mov 4(%esp), %eax
     lidt (%eax)

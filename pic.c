@@ -18,8 +18,10 @@ void pic_remap() {
     outb(PIC2_DATA, 0x02);
     outb(PIC1_DATA, 0x01);
     outb(PIC2_DATA, 0x01);
-    outb(PIC1_DATA, 0x0);
-    outb(PIC2_DATA, 0x0);
+    
+    // Mask all interrupts except IRQ0 (Timer)
+    outb(PIC1_DATA, 0xFE); // 11111110 (all masked except bit 0)
+    outb(PIC2_DATA, 0xFF); // 11111111 (all masked)
 }
 
 void pic_send_eoi(unsigned char irq) {
