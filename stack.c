@@ -1,4 +1,5 @@
 #include "stack.h"
+#include "serial.h"
 
 #define STACK_SIZE 4096
 #define MAX_STACKS 16
@@ -14,16 +15,21 @@ void* alloc_stack(size_t size) {
             return (void*)(stack_pool[i]); 
         }
     }
+    serial_puts("[ERROR] alloc_stack: no free stacks available\n");
     return NULL;
 }
 
 int free_stack(void* ptr) {
     for (int i = 0; i < MAX_STACKS; ++i) {
         if ((void*)stack_pool[i] == ptr) {
-            if (!stack_used[i]) return -1; // Already free
+            if (!stack_used[i]) {
+                serial_puts("[ERROR] free_stack: stack already free\n");
+                return -1; // Already free
+            }
             stack_used[i] = 0;
             return 0;
         }
     }
+    serial_puts("[ERROR] free_stack: pointer not in stack pool\n");
     return -2; // Not found
 }

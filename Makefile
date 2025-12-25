@@ -10,7 +10,7 @@ CFLAGS = -m32 -ffreestanding -O0 -Wall -Wextra -nostdinc \
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c
+SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c system.c
 SRCS_ASM = boot.S 
 
 TARGET_DIR = target
@@ -33,13 +33,13 @@ $(TARGET_DIR)/%.o: %.S
 	@echo "Assembling $<"
 
 run: $(KERNEL_ELF)
-	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial stdio -display none
+	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial stdio -display none -device isa-debug-exit
 
 run-vga: $(KERNEL_ELF)
-	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial mon:stdio
+	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial mon:stdio -device isa-debug-exit
 
 debug: $(KERNEL_ELF)
-	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial stdio -display none -s -S &
+	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial stdio -display none -device isa-debug-exit -s -S &
 	@echo "Waiting for GDB connection on port 1234..."
 	@echo "In another terminal run: gdb -ex 'target remote localhost:1234' -ex 'symbol-file $(KERNEL_ELF)'"
 
@@ -59,7 +59,7 @@ TEST_OBJS = $(patsubst %.c,$(TARGET_DIR)/%.o,$(TEST_SRCS))
 KERNEL_OBJS_NO_MAIN = $(filter-out $(TARGET_DIR)/kernel.o $(TARGET_DIR)/boot.o, $(OBJS))
 
 # Test CFLAGS (simple, allow standard includes)
-TEST_CFLAGS = -m32 -O2 -Wall -Wextra -I.
+TEST_CFLAGS = -m32 -O0 -Wall -Wextra -I. 
 
 # Pattern rule for test object files
 $(TARGET_DIR)/%.o: %.c

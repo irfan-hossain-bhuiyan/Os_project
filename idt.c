@@ -1,6 +1,7 @@
 #include "types.h"
 #include "io.h"
 #include "serial.h"
+#include "system.h"
 
 #define IDT_SIZE 256
 #define INTERRUPT_GATE 0x8E
@@ -43,10 +44,8 @@ void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
 
 // Triple fault handler: Prints a message and halts the CPU in an infinite loop.
 void triple_fault_handler(void) {
-    serial_puts("[TRIPLE FAULT] System Halted\n");
-    while (1) {
-        __asm__("hlt");
-    }
+    serial_puts("\n[IDT] TRIPLE FAULT: System Halted\n");
+    system_terminate(42);
 }
 
 // Installs the IDT by initializing all entries and loading it into the CPU.
@@ -61,10 +60,5 @@ void idt_install() {
 
     // Set the triple fault handler (actually double fault, vector 8)
     idt_set_gate(8, (uint32_t)triple_fault_handler, 0x08, INTERRUPT_GATE);
-    // idt in i386 processor is is not a designated area.
-    // It can be swapped for each process.
-    // Idtp is a vec like data structure for idt,
-    // lidt address load the idt.
     load_idt((uint32_t)&idtp);
 }
-

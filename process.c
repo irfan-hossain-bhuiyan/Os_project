@@ -3,12 +3,7 @@
 #include "stack.h"
 #include "string.h"
 
-static void switch_process(uint8_t next_pid);
-
-struct ProcessNode {
-  pidtype before;
-  pidtype after;
-} ProcessNode;
+void switch_process(uint8_t next_pid);
 
 struct Procent proc_table[NPROC];
 struct ProcessNode proc_nodes[NPROC];
@@ -41,7 +36,7 @@ static void node_append_after(pidtype pid, pidtype move_after) {
   proc_nodes[move_after].after = pid;
 }
 
-uint8_t current_pid = NPROC;
+uint8_t current_pid = 255;
 const size_t STACK_SIZE = 4096;
 
 // Round-robin: switch to the next process in the ready list
@@ -72,7 +67,7 @@ static void append_on_ready_list(pidtype pid) {
 
 static void null_process(void *arg) {
   (void)arg;
-  reshed();
+  while(1)reshed();
 }
 static void init_proc_table() {
   for (int i = 0; i < NPROC; i++) {
@@ -94,11 +89,22 @@ void init_proc(void) {
 
 // Wrapper: Create a process and append it to the ready list
 pidtype create_process(proc_entry_t entry, const void *arg, const char *name) {
+  serial_puts("[INFO] create_process: ");
+  serial_puts(name);
+  serial_puts("\n");
   uint8_t pid = proc_create(entry, arg, name);
   if (pid != 255) {
     append_on_ready_list(pid);
   }
   return pid;
+}
+
+#include "system.h"
+
+// Safety net: called if a process mistakenly returns.
+void on_process_end(void) {
+    serial_puts("\n[KERNEL] ERROR: Process returned! This should not happen. Terminating system...\n");
+    system_terminate(1);
 }
 
 static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name) {
@@ -111,12 +117,16 @@ static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name
     }
   }
 
-  if (pid == -1)
+  if (pid == -1) {
+    serial_puts("[ERROR] proc_create: no free process slots\n");
     return 255;
+  }
 
   void *stack = alloc_stack(STACK_SIZE);
-  if (!stack)
+  if (!stack) {
+    serial_puts("[ERROR] proc_create: stack allocation failed\n");
     return 255;
+  }
 
   proc_table[pid].state = PROC_READY;
   proc_table[pid].stackbase = stack;
@@ -124,10 +134,10 @@ static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name
   /* Prepare initial stack frame */
   uintptr_t *sp = (uintptr_t *)((uint8_t *)stack + STACK_SIZE);
 
-  *(--sp) = (uintptr_t)arg;   // Argument
-  *(--sp) = 0;                // Dummy Return Address
-  *(--sp) = (uintptr_t)entry; // Initial EIP
-  *(--sp) = 0x002;            // EFLAGS (Interrupts disabled)
+  *(--sp) = (uintptr_t)arg;           // Argument
+  *(--sp) = (uintptr_t)on_process_end; // RETURN ADDRESS (Safety Net)
+  *(--sp) = (uintptr_t)entry;          // Initial EIP
+  *(--sp) = 0x002;                     // EFLAGS (Interrupts disabled)
 
   /* Push dummy registers for popa */
   for (int i = 0; i < 8; i++) {
@@ -142,13 +152,16 @@ static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name
 }
 
 void run_null_process(void) {
+  serial_puts("[INFO] run_null_process: jumping to PID 0\n");
   /* Switch to PID 0 (the null process created in init_proc) */
   switch_process(0);
 }
 
-static void switch_process(pidtype next_pid) {
-  if (next_pid >= NPROC || proc_table[next_pid].state == PROC_FREE)
+void switch_process(pidtype next_pid) {
+  if (next_pid >= NPROC || proc_table[next_pid].state == PROC_FREE) {
+    serial_puts("[ERROR] switch_process: target PID is invalid or FREE\n");
     return;
+  }
 
   /* Handle first-time switch from kernel to a process */
   if (current_pid == 255) {

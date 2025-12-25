@@ -38,4 +38,5 @@ extern uint8_t current_pid;
 void init_proc(void);
 void run_null_process(void);
 void reshed(void);
+void switch_process(pidtype);
 #endif // PROCESS_H
