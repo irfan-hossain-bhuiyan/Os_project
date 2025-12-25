@@ -2,8 +2,10 @@
 #include "serial.h"
 #include "stack.h"
 #include "string.h"
+#include "system.h"
+#include "debug.h"
 
-void switch_process(uint8_t next_pid);
+void switch_process(pidtype next_pid);
 
 struct Procent proc_table[NPROC];
 struct ProcessNode proc_nodes[NPROC];
@@ -67,20 +69,23 @@ static void append_on_ready_list(pidtype pid) {
 
 static void null_process(void *arg) {
   (void)arg;
-  while(1)reshed();
+  while(1) reshed();
 }
+
 static void init_proc_table() {
   for (int i = 0; i < NPROC; i++) {
     proc_table[i].state = PROC_FREE;
     proc_table[i].pid = i;
   }
 }
+
 static void init_proc_nodes() {
   for (int i = 0; i < NPROC; i++) {
     proc_nodes[i].after = i;
     proc_nodes[i].before = i;
   }
 }
+
 void init_proc(void) {
   init_proc_nodes();
   init_proc_table();
@@ -89,9 +94,9 @@ void init_proc(void) {
 
 // Wrapper: Create a process and append it to the ready list
 pidtype create_process(proc_entry_t entry, const void *arg, const char *name) {
-  serial_puts("[INFO] create_process: ");
-  serial_puts(name);
-  serial_puts("\n");
+  kdebug_puts("[INFO] create_process: ");
+  kdebug_puts(name);
+  kdebug_puts("\n");
   uint8_t pid = proc_create(entry, arg, name);
   if (pid != 255) {
     append_on_ready_list(pid);
@@ -99,11 +104,9 @@ pidtype create_process(proc_entry_t entry, const void *arg, const char *name) {
   return pid;
 }
 
-#include "system.h"
-
 // Safety net: called if a process mistakenly returns.
 void on_process_end(void) {
-    serial_puts("\n[KERNEL] ERROR: Process returned! This should not happen. Terminating system...\n");
+    klog_error("Process returned! This should not happen. Terminating system...");
     system_terminate(1);
 }
 
@@ -118,13 +121,13 @@ static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name
   }
 
   if (pid == -1) {
-    serial_puts("[ERROR] proc_create: no free process slots\n");
+    klog_error("proc_create: no free process slots");
     return 255;
   }
 
   void *stack = alloc_stack(STACK_SIZE);
   if (!stack) {
-    serial_puts("[ERROR] proc_create: stack allocation failed\n");
+    klog_error("proc_create: stack allocation failed");
     return 255;
   }
 
@@ -152,14 +155,14 @@ static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name
 }
 
 void run_null_process(void) {
-  serial_puts("[INFO] run_null_process: jumping to PID 0\n");
+  kdebug_puts("[INFO] run_null_process: jumping to PID 0\n");
   /* Switch to PID 0 (the null process created in init_proc) */
   switch_process(0);
 }
 
 void switch_process(pidtype next_pid) {
   if (next_pid >= NPROC || proc_table[next_pid].state == PROC_FREE) {
-    serial_puts("[ERROR] switch_process: target PID is invalid or FREE\n");
+    klog_error("switch_process: target PID is invalid or FREE");
     return;
   }
 

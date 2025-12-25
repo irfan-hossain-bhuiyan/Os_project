@@ -6,11 +6,12 @@ AS = as
 
 # Using -O0 for stable bare-metal development per user request
 CFLAGS = -m32 -ffreestanding -O0 -Wall -Wextra -nostdinc \
-         -fno-builtin -fno-stack-protector -I.
+         -fno-builtin -fno-stack-protector -I. 
+#-DKERNEL_DEBUG
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c system.c
+SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c system.c debug.c
 SRCS_ASM = boot.S 
 
 TARGET_DIR = target
