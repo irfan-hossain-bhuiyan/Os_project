@@ -5,12 +5,12 @@ LD = ld
 AS = as
 
 # Using -O0 for stable bare-metal development per user request
-CFLAGS = -m32 -ffreestanding -O0 -Wall -Wextra -nostdinc \
+CFLAGS = -m32 -ffreestanding -O2 -Wall -Wextra -nostdinc \
          -fno-builtin -fno-stack-protector -I.
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-SRCS_C = kernel.c serial.c string.c process.c stack.c
+SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c
 SRCS_ASM = boot.S 
 
 TARGET_DIR = target

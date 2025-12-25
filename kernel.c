@@ -1,7 +1,7 @@
 #include "types.h"
 #include "serial.h"
 #include "process.h"
-
+#include "idt.h"
 void process_a(void *arg) {
     (void)arg;
     int count = 0;
@@ -41,7 +41,8 @@ void process_c(void *arg) {
 void kmain(void) {
     serial_init();
     serial_puts("\n--- kacchiOS Multi-Process State Test ---\n");
-
+    // Install the Interrupt Descriptor Table (IDT), including the triple fault handler at vector 8.
+    idt_install();
     init_proc(); // Creates Null Process at PID 0
     
     serial_puts("Creating Process A (PID 1)...\n");
@@ -53,7 +54,7 @@ void kmain(void) {
     serial_puts("Creating Process C (PID 3)...\n");
     proc_create(process_c, NULL, "proc_c"); 
     
-    serial_puts("Starting multitasking at A...\n");
+      serial_puts("Starting multitasking at A...\n");
     switch_process(1);
 
     /* Should never reach here */
