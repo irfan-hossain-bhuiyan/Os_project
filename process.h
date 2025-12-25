@@ -3,8 +3,9 @@
 
 #include "types.h"
 
-#define NPROC 16
+#define NPROC (254)
 
+typedef uint8_t pidtype;
 // Process states
 enum proc_state {
     PROC_FREE = 0,
@@ -14,7 +15,7 @@ enum proc_state {
     PROC_TERMINATED
 };
 
-struct procent {
+struct Procent {
     uint8_t pid;
     uint8_t state;
     uintptr_t *stackptr;
@@ -22,15 +23,14 @@ struct procent {
     char name[16];
 };
 
-extern struct procent proc_table[NPROC];
+extern struct Procent proc_table[NPROC];
 
 typedef void (*proc_entry_t)(void *);
 // Create a new process. Returns PID (0-15) or 255 on error.
-uint8_t proc_create(proc_entry_t entry, const void *arg, const char *name);
+pidtype create_process(proc_entry_t entry, const void *arg, const char *name);
 
 extern uint8_t current_pid;
 void init_proc(void);
-void switch_process(uint8_t next_pid);
 void run_null_process(void);
-
+void reshed(void);
 #endif // PROCESS_H

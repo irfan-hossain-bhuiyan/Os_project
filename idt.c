@@ -61,7 +61,10 @@ void idt_install() {
 
     // Set the triple fault handler (actually double fault, vector 8)
     idt_set_gate(8, (uint32_t)triple_fault_handler, 0x08, INTERRUPT_GATE);
-
+    // idt in i386 processor is is not a designated area.
+    // It can be swapped for each process.
+    // Idtp is a vec like data structure for idt,
+    // lidt address load the idt.
     load_idt((uint32_t)&idtp);
 }
 
