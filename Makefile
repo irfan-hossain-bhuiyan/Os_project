@@ -48,57 +48,50 @@ clean:
 
 .PHONY: all run run-vga debug clean
 
-# === Stack and Heap Test Build Rules ===
-# Test sources
-STACK_TEST_SRC = test_stack.c
-HEAP_TEST_SRC = test_heap.c
-# Object files for tests (in target directory)
-STACK_TEST_OBJ = $(TARGET_DIR)/test_stack.o
-HEAP_TEST_OBJ = $(TARGET_DIR)/test_heap.o
-STACK_OBJ = $(TARGET_DIR)/stack.o
-HEAP_OBJ = $(TARGET_DIR)/heap.o
+# === Unified Test Build Rules ===
 
-# Test executables
-STACK_TEST = $(TARGET_DIR)/test_stack
-HEAP_TEST = $(TARGET_DIR)/test_heap
+# Test sources
+TEST_SRCS = test_stack.c test_heap.c test_process.c
+TEST_BINS = $(patsubst %.c,$(TARGET_DIR)/%,$(TEST_SRCS))
+TEST_OBJS = $(patsubst %.c,$(TARGET_DIR)/%.o,$(TEST_SRCS))
+
+# All kernel objects except kernel.o and boot.o
+KERNEL_OBJS_NO_MAIN = $(filter-out $(TARGET_DIR)/kernel.o $(TARGET_DIR)/boot.o, $(OBJS))
 
 # Test CFLAGS (simple, allow standard includes)
 TEST_CFLAGS = -m32 -O2 -Wall -Wextra -I.
 
-# Build rule for stack_test.o
-$(STACK_TEST_OBJ): $(STACK_TEST_SRC)
+# Pattern rule for test object files
+$(TARGET_DIR)/%.o: %.c
 	@echo "[CC][TEST] $< -> $@"
 	@mkdir -p $(TARGET_DIR)
 	$(CC) $(TEST_CFLAGS) -c $< -o $@
 
-# Build rule for heap_test.o
-$(HEAP_TEST_OBJ): $(HEAP_TEST_SRC)
-	@echo "[CC][TEST] $< -> $@"
-	@mkdir -p $(TARGET_DIR)
-	$(CC) $(TEST_CFLAGS) -c $< -o $@
-
-# Link test_stack executable (test_stack.o + stack.o)
-$(STACK_TEST): $(STACK_TEST_OBJ) $(STACK_OBJ)
+# Pattern rule for test executables
+$(TARGET_DIR)/%: $(TARGET_DIR)/%.o $(KERNEL_OBJS_NO_MAIN)
 	@echo "[LD][TEST] $^ -> $@"
 	$(CC) $(TEST_CFLAGS) $^ -o $@
 
-# Link test_heap executable (test_heap.o + heap.o)
-$(HEAP_TEST): $(HEAP_TEST_OBJ) $(HEAP_OBJ)
-	@echo "[LD][TEST] $^ -> $@"
-	$(CC) $(TEST_CFLAGS) $^ -o $@
-
-# Run test_stack
-stack_test: $(STACK_TEST)
+# Run individual tests
+stack_test: $(TARGET_DIR)/test_stack
 	@echo "[RUN] $<"
-	./$(STACK_TEST)
+	./$(TARGET_DIR)/test_stack
 
-# Run test_heap
-heap_test: $(HEAP_TEST)
+heap_test: $(TARGET_DIR)/test_heap
 	@echo "[RUN] $<"
-	./$(HEAP_TEST)
+	./$(TARGET_DIR)/test_heap
+
+process_test: $(TARGET_DIR)/test_process
+	@echo "[RUN] $<"
+	./$(TARGET_DIR)/test_process
 
 # Run all tests
-test: stack_test heap_test
+test: stack_test heap_test process_test
 	@echo "[RUN] All tests completed."
+
+.PHONY: stack_test heap_test process_test test
+
+	@echo "[RUN] All tests completed."
+
 
 .PHONY: stack_test heap_test test

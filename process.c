@@ -3,7 +3,7 @@
 #include "stack.h"
 #include "string.h"
 
-void switch_process(uint8_t next_pid);
+static void switch_process(uint8_t next_pid);
 
 struct ProcessNode {
   pidtype before;
@@ -15,18 +15,26 @@ struct ProcessNode proc_nodes[NPROC];
 
 // Ready list head PID (255 means empty)
 pidtype ready_list = 255;
-pidtype proc_create(proc_entry_t entry, const void *arg, const char *name);
+static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name);
 
-void node_append_before(pidtype pid, pidtype move_before) {
-  pidtype before = proc_nodes[move_before].before;
+pidtype get_next_node(pidtype pid) {
+    return proc_nodes[pid].after;
+}
+
+pidtype get_previous_node(pidtype pid) {
+    return proc_nodes[pid].before;
+}
+
+static void node_append_before(pidtype pid, pidtype move_before) {
+  pidtype before = get_previous_node(move_before);
   proc_nodes[pid].after = move_before;
   proc_nodes[pid].before = before;
   proc_nodes[before].after = pid;
   proc_nodes[move_before].before = pid;
 }
 
-void node_append_after(pidtype pid, pidtype move_after) {
-  pidtype after = proc_nodes[move_after].after;
+static void node_append_after(pidtype pid, pidtype move_after) {
+  pidtype after = get_next_node(move_after);
   proc_nodes[pid].before = move_after;
   proc_nodes[pid].after = after;
   proc_nodes[after].before = pid;
@@ -37,17 +45,17 @@ uint8_t current_pid = NPROC;
 const size_t STACK_SIZE = 4096;
 
 // Round-robin: switch to the next process in the ready list
-void switch_to_next_process(void) {
+static void switch_to_next_process(void) {
   if (current_pid == 255 || ready_list == 255)
     return;
-  pidtype next_pid = proc_nodes[current_pid].after;
+  pidtype next_pid = get_next_node(current_pid);
   if (next_pid == 255)
     return;
   switch_process(next_pid);
 }
 void reshed(void) { switch_to_next_process(); }
 
-void append_on_ready_list(pidtype pid) {
+static void append_on_ready_list(pidtype pid) {
   if (pid == 255)
     return;
   if (ready_list == 255) {
@@ -62,17 +70,17 @@ void append_on_ready_list(pidtype pid) {
   }
 }
 
-void null_process(void *arg) {
+static void null_process(void *arg) {
   (void)arg;
   reshed();
 }
-void init_proc_table() {
+static void init_proc_table() {
   for (int i = 0; i < NPROC; i++) {
     proc_table[i].state = PROC_FREE;
     proc_table[i].pid = i;
   }
 }
-void init_proc_nodes() {
+static void init_proc_nodes() {
   for (int i = 0; i < NPROC; i++) {
     proc_nodes[i].after = i;
     proc_nodes[i].before = i;
@@ -93,7 +101,7 @@ pidtype create_process(proc_entry_t entry, const void *arg, const char *name) {
   return pid;
 }
 
-pidtype proc_create(proc_entry_t entry, const void *arg, const char *name) {
+static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name) {
   /* Find a free slot */
   int pid = -1;
   for (int i = 0; i < NPROC; i++) {
@@ -138,7 +146,7 @@ void run_null_process(void) {
   switch_process(0);
 }
 
-void switch_process(pidtype next_pid) {
+static void switch_process(pidtype next_pid) {
   if (next_pid >= NPROC || proc_table[next_pid].state == PROC_FREE)
     return;
 

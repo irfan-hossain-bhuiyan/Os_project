@@ -6,6 +6,11 @@
 #define NPROC (254)
 
 typedef uint8_t pidtype;
+
+struct ProcessNode {
+    pidtype before;
+    pidtype after;
+};
 // Process states
 enum proc_state {
     PROC_FREE = 0,
