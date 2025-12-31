@@ -2,6 +2,7 @@
 #include "stack.h"
 #include <stdio.h>
 
+#include "math.h"
 int test_heap() {
     void* blocks[5];
     int i;

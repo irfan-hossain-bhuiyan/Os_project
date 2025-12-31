@@ -12,7 +12,6 @@ void dummy_proc(void *arg) { (void)arg; }
 int main() {
   // Initialize process system (creates null process at PID 0)
   init_proc();
-
   // Test: ready list should contain only the null process (PID 0)
   assert(ready_list == 0);
   assert(get_next_node(0) == 0);

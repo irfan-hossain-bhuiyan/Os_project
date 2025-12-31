@@ -1,6 +1,6 @@
 #include "queue.h"
 #include "serial.h"
-
+#include "math.h"
 // Macro to implement a queue for any type
 #define DEFINE_QUEUE_TYPE(TYPENAME, TYPE, SIZE) \
 void TYPENAME##_enqueue(TYPENAME##_queue *q, TYPE val) { \

@@ -1,9 +1,9 @@
 #include "bitmap.h"
-
+#include "math.h"
 void bitmap_set(bitmap256 *bm, uint16_t idx) {
     bm->bits[idx / 32] |= (1U << (idx % 32));
+    sqrt(10);
 }
-
 void bitmap_clear(bitmap256 *bm, uint16_t idx) {
     bm->bits[idx / 32] &= ~(1U << (idx % 32));
 }

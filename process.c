@@ -50,7 +50,13 @@ static void switch_to_next_process(void) {
     return;
   switch_process(next_pid);
 }
-void reshed(void) { switch_to_next_process(); }
+
+void reshed(void) {
+    //kdebug_puts("\n[DEBUG] reshed called\n");
+    __asm__ volatile("cli");
+    switch_to_next_process();
+    __asm__ volatile("sti");
+}
 
 static void append_on_ready_list(pidtype pid) {
   if (pid == 255)
@@ -140,7 +146,7 @@ static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name
   *(--sp) = (uintptr_t)arg;           // Argument
   *(--sp) = (uintptr_t)on_process_end; // RETURN ADDRESS (Safety Net)
   *(--sp) = (uintptr_t)entry;          // Initial EIP
-  *(--sp) = 0x002;                     // EFLAGS (Interrupts disabled)
+  *(--sp) = 0x202;                     // EFLAGS (Interrupts enabled)
 
   /* Push dummy registers for popa */
   for (int i = 0; i < 8; i++) {
@@ -197,12 +203,12 @@ void switch_process(pidtype next_pid) {
    */
   __asm__ volatile(
       "pushl $1f      \n\t" // Push resumption address
-      "pushf          \n\t"
-      "pusha          \n\t"
+      "pushf          \n\t" // Save current flags
+      "pusha          \n\t" // Save all registers
       "movl %%esp, %0 \n\t" // Store current ESP
       "movl %1, %%esp \n\t" // Load next ESP
       "popa           \n\t"
-      "popf           \n\t"
+      "popf           \n\t" // Restores flags
       "ret            \n\t" // Jump to resumption point OR process entry
       "1:             \n\t" // Resumption point
       : "=m"(proc_table[prev_pid].stackptr)

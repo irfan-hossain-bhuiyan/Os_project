@@ -3,7 +3,6 @@
 #include "io.h"
 
 #define COM1 0x3F8   /* I/O port base address for COM1 */
-
 /*
 You can find more information here: https://caro.su/msx/ocm_de1/16550.pdf
 

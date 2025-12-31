@@ -18,21 +18,24 @@ static void pit_init(uint32_t frequency) {
 
 #include "process.h"
 
+// 1000 Hz = 1ms period
+// Trigger reshed every 16 ticks (~16ms time slice)
 void timer_handler(void) {
     ticks++;
-    if (ticks % 100 == 0) {
-        // Switch between PID 0 (Process A) and PID 1 (Process B)
-        uint8_t next = (current_pid == 0) ? 1 : 0;
-        switch_process(next);
+    
+    // Send EOI to PIC
+    pic_send_eoi(0);
+
+    if ((ticks & 0xF) == 0 && current_pid != 255) { // ticks % 16 == 0
+        reshed();
     }
-    pic_send_eoi(0); // IRQ0
 }
 
 extern void timer_stub();
 
 void timer_init(void) {
     ticks = 0;
-    pit_init(100); // Set timer to 100 Hz
+    pit_init(1000); // Set timer to 1000 Hz (1ms)
     idt_set_gate(32, (uint32_t)timer_stub, 0x08, 0x8E); // Map IRQ0 to timer_stub
     pic_remap(); // Remap PIC interrupts
     asm volatile ("sti"); // Enable interrupts

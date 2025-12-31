@@ -11,8 +11,8 @@ CFLAGS = -m32 -ffreestanding -O0 -Wall -Wextra -nostdinc \
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c system.c debug.c
-SRCS_ASM = boot.S 
+SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c system.c debug.c timer.c
+SRCS_ASM = boot.S timer_stub.S
 
 TARGET_DIR = target
 OBJS = $(patsubst %.c,$(TARGET_DIR)/%.o,$(SRCS_C)) \
