@@ -1,60 +1,34 @@
 #include "kacchios.h"
 
-// Receiver (Consumer)
-void consumer(void* arg) {
+void process_a(void* arg) {
     (void)arg;
-    serial_puts("Consumer: Waiting for messages...\n");
-    for (int i = 0; i < 5; i++) {
-        uint32_t msg = receive();
-        serial_puts("Consumer: Received ");
-        serial_print_hex(msg);
+    int index = 0;
+    while(1) {
+        serial_puts("Process A: ");
+        serial_print_hex(index++);
         serial_puts("\n");
+        // Busy wait
+        for(volatile int i=0; i<10000000; i++);
     }
-    serial_puts("Consumer: Finished.\n");
-    
-    // Test heap
-    void* ptr = malloc(128);
-    if (ptr) {
-        serial_puts("Consumer: Heap alloc success\n");
-        free(ptr);
-    }
-    
-    while(1);
 }
 
-// Sender (Producer)
-void producer(void* arg) {
-    pidtype target = (pidtype)(uintptr_t)arg;
-    serial_puts("Producer: Sending messages...\n");
-    for (int i = 0; i < 5; i++) {
-        // Simple delay
-         for (volatile int j = 0; j < 5000000; j++);
-         
-        serial_puts("Producer: Sending ");
-        serial_print_hex(i);
+void process_b(void* arg) {
+    (void)arg;
+    int index = 0;
+    while(1) {
+        serial_puts("Process B: ");
+        serial_print_hex(index++);
         serial_puts("\n");
-        
-        int res = send(target, i);
-        if (res != 0) {
-            serial_puts("Producer: Send failed!\n");
-        }
+        // Busy wait
+        for(volatile int i=0; i<10000000; i++);
     }
-    serial_puts("Producer: Finished.\n");
-    while(1);
 }
 
-// User Main
-void main(void* arg) {
-    (void)arg;
-    serial_puts("\n[User] Main started\n");
-
-    // Create Consumer
-    pidtype cons_pid = create_process(consumer, NULL, "consumer");
+void main(void) {
+    serial_puts("\n[User] Main: Creating Process A and B...\n");
     
-    // Create Producer
-    create_process(producer, (void*)(uintptr_t)cons_pid, "producer");
-
-    // Main can exit or loop.
-    // In kacchiOS if a process returns, it calls kill(self).
-    serial_puts("[User] Main exiting (spawning complete)\n");
+    create_process(process_a, NULL, "proc_a");
+    create_process(process_b, NULL, "proc_b");
+    
+    serial_puts("[User] Main: Exiting...\n");
 }
