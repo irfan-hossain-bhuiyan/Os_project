@@ -30,25 +30,80 @@ static void node_append_before(pidtype pid, pidtype move_before) {
   proc_nodes[move_before].before = pid;
 }
 
-static void node_append_after(pidtype pid, pidtype move_after) {
-  pidtype after = get_next_node(move_after);
-  proc_nodes[pid].before = move_after;
-  proc_nodes[pid].after = after;
-  proc_nodes[after].before = pid;
-  proc_nodes[move_after].after = pid;
+// remove a node from the linked list
+static void node_remove(pidtype pid) {
+    pidtype prev = proc_nodes[pid].before;
+    pidtype next = proc_nodes[pid].after;
+
+    if (pid == next) {
+        // Only one element in the list
+        ready_list = 255;
+    } else {
+        proc_nodes[prev].after = next;
+        proc_nodes[next].before = prev;
+        
+        // Update ready_list head if we removed the head
+        if (ready_list == pid) {
+            ready_list = next;
+        }
+    }
 }
 
 uint8_t current_pid = 255;
 const size_t STACK_SIZE = 4096;
 
-// Round-robin: switch to the next process in the ready list
+pidtype getpid(void) {
+    return current_pid;
+}
+
+// Round-robin with lazy zombie cleanup
 static void switch_to_next_process(void) {
-  if (current_pid == 255 || ready_list == 255)
-    return;
-  pidtype next_pid = get_next_node(current_pid);
-  if (next_pid == 255)
-    return;
-  switch_process(next_pid);
+  if (ready_list == 255) return;
+
+  // Start checking from the next node
+  pidtype curr = get_next_node(current_pid);
+  if (curr == 255) curr = ready_list; // Fallback if current_pid wasn't in list
+
+  pidtype start_check = curr;
+  
+  while (1) {
+      if (proc_table[curr].state == PROC_TERMINATED) {
+          // Process is terminated, proceed with cleanup
+          
+          // Safety: Don't clean our own stack while running on it
+          if (curr != current_pid) {
+              pidtype to_clean = curr;
+              curr = get_next_node(curr); // Advance curr before unlinking
+              
+              node_remove(to_clean);
+              free_stack(proc_table[to_clean].stackbase);
+              proc_table[to_clean].state = PROC_FREE;
+              
+              kdebug_puts("[INFO] Cleanup complete for PID ");
+              // kdebug_puthex(to_clean);
+              kdebug_puts("\n");
+              
+              if (ready_list == 255) return; // List became empty
+              // If we looped back to start because of removal, update start
+              if (to_clean == start_check) start_check = curr;
+              
+              continue; // Continue loop with new curr
+          }
+      }
+
+      if (proc_table[curr].state == PROC_READY) {
+          switch_process(curr);
+          return;
+      }
+
+      curr = get_next_node(curr);
+      
+      // Full circle check
+      if (curr == start_check) {
+          // No ready process found (all might be suspended or current is the only one)
+          return;
+      }
+  }
 }
 
 void reshed(void) {
@@ -110,10 +165,24 @@ pidtype create_process(proc_entry_t entry, const void *arg, const char *name) {
   return pid;
 }
 
+int kill(pidtype pid) {
+    if (pid == 0) {
+        klog_error("kill: null_process can't be terminated");
+        return -1;
+    }
+    
+    if (pid >= NPROC || proc_table[pid].state == PROC_FREE) {
+        return -1;
+    }
+
+    proc_table[pid].state = PROC_TERMINATED;
+    reshed();
+    return 0;
+}
+
 // Safety net: called if a process mistakenly returns.
 void on_process_end(void) {
-    klog_error("Process returned! This should not happen. Terminating system...");
-    system_terminate(1);
+    kill(getpid());
 }
 
 static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name) {
@@ -194,7 +263,13 @@ void switch_process(pidtype next_pid) {
   uint8_t prev_pid = current_pid;
   current_pid = next_pid;
 
-  proc_table[prev_pid].state = PROC_READY;
+  // Important: logic modification to support termination
+  // Only set PREV to READY if it is still CURRENT (meaning it yielded or was preempted alive)
+  // If kill() was called, state is already PROC_TERMINATED. don't overwrite it.
+  if (proc_table[prev_pid].state == PROC_CURRENT) {
+      proc_table[prev_pid].state = PROC_READY;
+  }
+
   proc_table[next_pid].state = PROC_CURRENT;
 
   /*
