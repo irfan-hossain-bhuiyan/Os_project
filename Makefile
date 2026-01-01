@@ -11,7 +11,7 @@ CFLAGS = -m32 -ffreestanding -O0 -Wall -Wextra -nostdinc \
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c system.c debug.c timer.c heap.c
+SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c system.c debug.c timer.c heap.c sem.c main.c
 SRCS_ASM = boot.S timer_stub.S
 
 TARGET_DIR = target
@@ -34,13 +34,13 @@ $(TARGET_DIR)/%.o: %.S
 	@echo "Assembling $<"
 
 run: $(KERNEL_ELF)
-	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial stdio -display none -device isa-debug-exit
+	qemu-system-i386 -kernel $(KERNEL_ELF) -m 512M -serial stdio -display none -device isa-debug-exit
 
 run-vga: $(KERNEL_ELF)
-	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial mon:stdio -device isa-debug-exit
+	qemu-system-i386 -kernel $(KERNEL_ELF) -m 512M -serial mon:stdio -device isa-debug-exit
 
 debug: $(KERNEL_ELF)
-	qemu-system-i386 -kernel $(KERNEL_ELF) -m 64M -serial stdio -display none -device isa-debug-exit -s -S &
+	qemu-system-i386 -kernel $(KERNEL_ELF) -m 512M -serial stdio -display none -device isa-debug-exit -s -S &
 	@echo "Waiting for GDB connection on port 1234..."
 	@echo "In another terminal run: gdb -ex 'target remote localhost:1234' -ex 'symbol-file $(KERNEL_ELF)'"
 
@@ -61,7 +61,6 @@ KERNEL_OBJS_NO_MAIN = $(filter-out $(TARGET_DIR)/kernel.o $(TARGET_DIR)/boot.o, 
 
 # Test CFLAGS (simple, allow standard includes)
 TEST_CFLAGS = -m32 -O0 -Wall -Wextra -I. 
-
 # Pattern rule for test object files
 $(TARGET_DIR)/%.o: %.c
 	@echo "[CC][TEST] $< -> $@"
@@ -91,8 +90,3 @@ test: stack_test heap_test process_test
 	@echo "[RUN] All tests completed."
 
 .PHONY: stack_test heap_test process_test test
-
-	@echo "[RUN] All tests completed."
-
-
-.PHONY: stack_test heap_test test

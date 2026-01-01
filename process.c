@@ -31,7 +31,7 @@ static void node_append_before(pidtype pid, pidtype move_before) {
 }
 
 // remove a node from the linked list
-static void node_remove(pidtype pid) {
+void node_remove(pidtype pid) {
     pidtype prev = proc_nodes[pid].before;
     pidtype next = proc_nodes[pid].after;
 
@@ -113,7 +113,7 @@ void reshed(void) {
     __asm__ volatile("sti");
 }
 
-static void append_on_ready_list(pidtype pid) {
+void append_on_ready_list(pidtype pid) {
   if (pid == 255)
     return;
   if (ready_list == 255) {
@@ -226,6 +226,9 @@ static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name
   strcpy(proc_table[pid].name, name);
   proc_table[pid].name[15] = '\0';
 
+  // IPC Init
+  proc_table[pid].has_message = 0;
+
   return pid;
 }
 
@@ -266,6 +269,7 @@ void switch_process(pidtype next_pid) {
   // Important: logic modification to support termination
   // Only set PREV to READY if it is still CURRENT (meaning it yielded or was preempted alive)
   // If kill() was called, state is already PROC_TERMINATED. don't overwrite it.
+  // Also check if we are WAITING (semaphore block)
   if (proc_table[prev_pid].state == PROC_CURRENT) {
       proc_table[prev_pid].state = PROC_READY;
   }
@@ -289,4 +293,66 @@ void switch_process(pidtype next_pid) {
       : "=m"(proc_table[prev_pid].stackptr)
       : "m"(proc_table[next_pid].stackptr)
       : "memory");
+}
+
+// --- IPC Implementation ---
+
+// Send a message to a process
+// Returns 0 on success, -1 if pid invalid, 256 if buffer full (simple Xinu semantics usually return error)
+int send(pidtype pid, uint32_t msg) {
+    // Disable interrupts for atomicity
+    __asm__ volatile("cli");
+    
+    if (pid >= NPROC || proc_table[pid].state == PROC_FREE) {
+        __asm__ volatile("sti");
+        return -1;
+    }
+
+    // Xinu semantics: If already has message, return error (non-blocking send)
+    if (proc_table[pid].has_message) {
+        __asm__ volatile("sti");
+        return -2; // Queue full
+    }
+
+    proc_table[pid].msg = msg;
+    proc_table[pid].has_message = 1;
+
+    // If receiver was waiting for a message, wake it up
+    if (proc_table[pid].state == PROC_RECV) {
+        proc_table[pid].state = PROC_READY;
+        append_on_ready_list(pid);
+        // Reschedule to allow receiver to run immediately if priority is implemented
+        // In RR, it just joins the queue.
+    }
+
+    __asm__ volatile("sti");
+    return 0;
+}
+
+// Receive a message (Blocks if empty)
+uint32_t receive(void) {
+    __asm__ volatile("cli");
+    
+    // If we already have a message, Consume it
+    if (proc_table[current_pid].has_message) {
+        uint32_t msg = proc_table[current_pid].msg;
+        proc_table[current_pid].has_message = 0;
+        __asm__ volatile("sti");
+        return msg;
+    }
+
+    // No message: Block
+    proc_table[current_pid].state = PROC_RECV;
+    node_remove(current_pid); // Remove from ready list
+    
+    reshed(); // Yield CPU
+
+    // --- We wake up here after being made READY by send() ---
+    
+    // Safety check (should have message now)
+    uint32_t msg = proc_table[current_pid].msg;
+    proc_table[current_pid].has_message = 0;
+    
+    __asm__ volatile("sti");
+    return msg;
 }
