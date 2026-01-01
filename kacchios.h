@@ -50,9 +50,7 @@ void free(void *ptr);
 void *realloc(void *ptr, unsigned int size);
 
 // --- I/O & Utils ---
-
-void serial_puts(const char *str);
-void serial_print_hex(uint32_t val);
+#include "serial.h"
 
 // Standard string functions (if needed by user)
 size_t strlen(const char *str);
