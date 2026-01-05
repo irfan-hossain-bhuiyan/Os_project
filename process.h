@@ -53,8 +53,11 @@ uint32_t receive(void);
 extern struct ProcessNode proc_nodes[NPROC];
 void node_remove(pidtype pid);
 void append_on_ready_list(pidtype pid);
+pidtype get_next_node(pidtype pid);
 
 extern uint8_t current_pid;
+extern pidtype ready_list;
+
 void init_proc(void);
 void run_null_process(void);
 void reshed(void);
