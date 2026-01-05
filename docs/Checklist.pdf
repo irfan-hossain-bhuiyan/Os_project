@@ -1,0 +1,24 @@
+
+## Checklist
+
+### Memory Manager
+- [x] Stack allocation
+- [x] Heap allocation
+- [x] Stack deallocation
+- [x] Heap deallocation
+- [x] Optimized memory allocation (This one is debatable,Like much is considered optimized.)
+
+### Process Manager
+- [x] Process table
+- [x] Process creation
+- [x] State transition
+- [x] Process termination
+- [x] Utility functions to get process-specific functions
+- [x] Add more states
+- [x] Inter-process communication (IPC)
+
+### Scheduler
+- [x] Clear policy to schedule
+- [x] Context switch
+- [x] Configurable time quantum (This is one implemented in kernal initialization.)
+- [ ] Implement aging
