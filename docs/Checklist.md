@@ -20,5 +20,5 @@
 ### Scheduler
 - [x] Clear policy to schedule
 - [x] Context switch
-- [x] Configurable time quantum (This is one implemented in kernal initialization.)
+- [x] Configurable time quantum (This is one implemented in kernal initialization.default to 20 ms,old linux standard.)
 - [ ] Implement aging
