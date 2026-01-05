@@ -11,7 +11,8 @@ CFLAGS = -m32 -ffreestanding -O2 -Wall -Wextra -nostdinc \
 ASFLAGS = --32
 LDFLAGS = -m elf_i386
 
-SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c system.c debug.c timer.c heap.c sem.c main.c
+SRCS_C = kernel.c serial.c string.c process.c stack.c idt.c pic.c system.c \
+         debug.c timer.c heap.c sem.c main.c vga.c keyboard.c monitor.c
 SRCS_ASM = boot.S timer_stub.S
 
 TARGET_DIR = target

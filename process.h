@@ -31,6 +31,10 @@ struct Procent {
     // Message Passing
     uint32_t msg; 
     int has_message;
+    
+    // Process aging (prevent starvation)
+    uint32_t age;          // Incremented each tick while waiting
+    uint32_t total_ticks;  // Total CPU time consumed
 };
 
 extern struct Procent proc_table[NPROC];

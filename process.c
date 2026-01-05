@@ -56,10 +56,24 @@ pidtype getpid(void) {
     return current_pid;
 }
 
-// Round-robin with lazy zombie cleanup
+// Round-robin with lazy zombie cleanup and aging support
 static void switch_to_next_process(void) {
   if (ready_list == 255) return;
 
+  // Age all waiting processes (prevent starvation)
+  pidtype curr_age = ready_list;
+  pidtype start_age = curr_age;
+  do {
+      if (proc_table[curr_age].state == PROC_READY) {
+          proc_table[curr_age].age++;
+      }
+      curr_age = get_next_node(curr_age);
+  } while (curr_age != start_age);
+
+  // Find the process with highest age (oldest waiting process)
+  pidtype oldest_pid = 255;
+  uint32_t max_age = 0;
+  
   // Start checking from the next node
   pidtype curr = get_next_node(current_pid);
   if (curr == 255) curr = ready_list; // Fallback if current_pid wasn't in list
@@ -92,18 +106,36 @@ static void switch_to_next_process(void) {
       }
 
       if (proc_table[curr].state == PROC_READY) {
-          switch_process(curr);
-          return;
+          // Track process with highest age for aging-based priority
+          if (proc_table[curr].age > max_age) {
+              max_age = proc_table[curr].age;
+              oldest_pid = curr;
+          }
+          
+          // If no aging threshold met, use round-robin
+          if (oldest_pid == 255) {
+              oldest_pid = curr;
+          }
       }
 
       curr = get_next_node(curr);
       
       // Full circle check
       if (curr == start_check) {
-          // No ready process found (all might be suspended or current is the only one)
-          return;
+          break;
       }
   }
+  
+  // Switch to the oldest waiting process (or next in round-robin if tie)
+  if (oldest_pid != 255) {
+      proc_table[oldest_pid].age = 0; // Reset age when scheduled
+      proc_table[oldest_pid].total_ticks++;
+      switch_process(oldest_pid);
+      return;
+  }
+  
+  // No ready process found
+  return;
 }
 
 void reshed(void) {
@@ -228,6 +260,10 @@ static pidtype proc_create(proc_entry_t entry, const void *arg, const char *name
 
   // IPC Init
   proc_table[pid].has_message = 0;
+  
+  // Aging Init
+  proc_table[pid].age = 0;
+  proc_table[pid].total_ticks = 0;
 
   return pid;
 }

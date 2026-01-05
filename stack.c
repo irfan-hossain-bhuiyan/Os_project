@@ -33,3 +33,13 @@ int free_stack(void* ptr) {
     klog_error("[ERROR] free_stack: pointer not in stack pool\n");
     return -2; // Not found
 }
+
+int get_stack_usage(void) {
+    int count = 0;
+    for (int i = 0; i < MAX_STACKS; i++) {
+        if (stack_used[i]) {
+            count++;
+        }
+    }
+    return count;
+}

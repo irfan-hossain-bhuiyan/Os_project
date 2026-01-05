@@ -13,4 +13,7 @@ void* realloc(void* ptr, size_t size);
 // Returns the base pointer of the heap.
 void* heap_base(void);
 
+// Get heap statistics
+void heap_stats(size_t *used, size_t *free, size_t *total);
+
 #endif // MEMORY_HEAP_H

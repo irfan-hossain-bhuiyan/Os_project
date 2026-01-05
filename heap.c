@@ -153,3 +153,28 @@ void* realloc(void* ptr, size_t size) {
     }
     return new_ptr;
 }
+
+// Get heap statistics
+void heap_stats(size_t *used, size_t *free_space, size_t *total) {
+    if (heap_head == NULL) {
+        *used = 0;
+        *free_space = 0;
+        *total = 0;
+        return;
+    }
+    
+    *total = HEAP_SIZE;
+    *used = 0;
+    *free_space = 0;
+    
+    struct BlockHeader* current = heap_head;
+    while (current != NULL) {
+        size_t block_total = sizeof(struct BlockHeader) + current->size;
+        if (current->is_free) {
+            *free_space += current->size;
+        } else {
+            *used += current->size;
+        }
+        current = current->next;
+    }
+}
