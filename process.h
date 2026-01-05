@@ -7,12 +7,14 @@
 
 typedef uint8_t pidtype;
 
-struct ProcessNode {
+struct ProcessNode
+{
     pidtype before;
     pidtype after;
 };
 // Process states
-enum proc_state {
+enum proc_state
+{
     PROC_FREE = 0,
     PROC_CURRENT,
     PROC_READY,
@@ -21,20 +23,21 @@ enum proc_state {
     PROC_TERMINATED
 };
 
-struct Procent {
+struct Procent
+{
     uint8_t pid;
     uint8_t state;
     uintptr_t *stackptr;
     void *stackbase;
     char name[16];
-    
+
     // Message Passing
-    uint32_t msg; 
+    uint32_t msg;
     int has_message;
-    
+
     // Process aging (prevent starvation)
-    uint32_t age;          // Incremented each tick while waiting
-    uint32_t total_ticks;  // Total CPU time consumed
+    uint32_t age;         // Incremented each tick while waiting
+    uint32_t total_ticks; // Total CPU time consumed
 };
 
 extern struct Procent proc_table[NPROC];
